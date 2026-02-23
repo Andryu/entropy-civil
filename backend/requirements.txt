@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+requests
+chromadb==0.5.20
+pydantic
+python-dotenv
+langchain
+langchain-community
+langchain-core
+litellm

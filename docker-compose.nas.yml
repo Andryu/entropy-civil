@@ -1,0 +1,97 @@
+# NAS デプロイ用 docker-compose
+# Mac ローカルとの差分: network設定、外部ボリュームの固定パス、ヘルスチェック強化
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: civ_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-civ_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-civ_password}
+      POSTGRES_DB: ${POSTGRES_DB:-civ_timeline}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/pg-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-civ_user} -d ${POSTGRES_DB:-civ_timeline}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - civ_net
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: civ_chromadb
+    restart: unless-stopped
+    environment:
+      - IS_PERSISTENT=TRUE
+      - CHROMA_SERVER_AUTH_PROVIDER=
+    ports:
+      - "8000:8000"
+    volumes:
+      - chromadata:/chroma/chroma
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - civ_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: civ_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-civ_user}:${POSTGRES_PASSWORD:-civ_password}@db:5432/${POSTGRES_DB:-civ_timeline}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - CHROMA_DATA_PATH=/app/chroma_data
+    ports:
+      - "8001:8001"
+    volumes:
+      - chroma_local:/app/chroma_data
+    networks:
+      - civ_net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # NAS (Linux) の場合に必要
+
+  simulation:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: civ_simulation
+    restart: unless-stopped
+    command: ["python", "simulation.py"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-civ_user}:${POSTGRES_PASSWORD:-civ_password}@db:5432/${POSTGRES_DB:-civ_timeline}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - CHROMA_DATA_PATH=/app/chroma_data
+    volumes:
+      - chroma_local:/app/chroma_data
+    networks:
+      - civ_net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  pgdata:
+  chromadata:
+  chroma_local:
+
+networks:
+  civ_net:
+    driver: bridge
