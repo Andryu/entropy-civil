@@ -1,6 +1,7 @@
 import os
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 import chromadb
 
@@ -21,7 +22,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_CHROMA_DATA_PATH = os.path.join(os.path.dirname(__file__), "chroma_data")
+# Create static directory if it doesn't exist and mount it
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+os.makedirs(static_dir, exist_ok=True)
+os.makedirs(os.path.join(static_dir, "curated_art"), exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+_CHROMA_DATA_PATH = os.path.join(os.path.dirname(__file__), "chroma_data_v2")
 try:
     chroma_client = chromadb.PersistentClient(path=_CHROMA_DATA_PATH)
     chroma_collection = chroma_client.get_or_create_collection(name="civilization_memories")
@@ -53,18 +60,14 @@ def get_universe_data():
             for i in range(len(results["ids"])):
                 # We need XYZ coordinates. Assuming we have embeddings, we take first 3 dims.
                 # If embeddings aren't returned or less than 3 dims, mock them defensively.
-                emb = results["embeddings"][i] if results.get("embeddings") else None
-                if emb and len(emb) >= 3:
-                    pos = [emb[0]*10, emb[1]*10, emb[2]*10]  # Scale factor
-                else:
-                    # Fallback deterministic random based on hash for stable display
-                    import hashlib
-                    h = int(hashlib.sha256(results["ids"][i].encode()).hexdigest(), 16)
-                    pos = [
-                        (h % 100 - 50) * 1.5,
-                        ((h // 100) % 100 - 50) * 1.5,
-                        ((h // 10000) % 100 - 50) * 1.5
-                    ]
+                # Fallback deterministic random based on hash for stable display
+                import hashlib
+                h = int(hashlib.sha256(results["ids"][i].encode()).hexdigest(), 16)
+                pos = [
+                    (h % 100 - 50) * 1.5,
+                    ((h // 100) % 100 - 50) * 1.5,
+                    ((h // 10000) % 100 - 50) * 1.5
+                ]
                 
                 meta = results["metadatas"][i] or {}
                 
@@ -73,7 +76,7 @@ def get_universe_data():
                     "text": results["documents"][i],
                     "position": pos,
                     "importance": meta.get("importance", 0.5),
-                    "isLegend": meta.get("entropy_level", 0.0) > 0.5,
+                    "isLegend": meta.get("entropy_level", 0.0) > 0.5 or "[LEGEND]" in results["documents"][i],
                     "agent_id": meta.get("agent_id", "Unknown")
                 })
         return {"data": particles}
@@ -91,6 +94,20 @@ def get_historical_logs(limit: int = 50, db: Session = Depends(get_db)):
 def get_historical_epochs(db: Session = Depends(get_db)):
     """Return timeline of epochs"""
     epochs = db.query(models.HistoricalEpoch).order_by(models.HistoricalEpoch.turn_start.asc()).all()
-    return {"epochs": [{"id": e.id, "name": e.epoch_name, "turn_start": e.turn_start} for e in epochs]}
+    
+    # Also look for images in static folder
+    result = []
+    for e in epochs:
+        # Simple check for image: [epoch_id].jpg
+        image_path = f"/static/curated_art/{e.id}.jpg"
+        # We don't check filesystem here for performance, frontend can handle 404
+        result.append({
+            "id": e.id, 
+            "name": e.epoch_name, 
+            "turn_start": e.turn_start,
+            "master_prompt": e.master_prompt,
+            "image_url": image_path
+        })
+    return {"epochs": result}
 
-# Run with: uvicorn main:app --reload
+# Run with: uvicorn main:app --reload --port 8002

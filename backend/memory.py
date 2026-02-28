@@ -6,8 +6,8 @@ import os
 import chromadb
 
 # Use local PersistentClient — no Docker server needed.
-# Data is saved to ./chroma_data inside the backend directory.
-_CHROMA_DATA_PATH = os.path.join(os.path.dirname(__file__), "chroma_data")
+# Data is saved to ./chroma_data_v2 inside the backend directory.
+_CHROMA_DATA_PATH = os.path.join(os.path.dirname(__file__), "chroma_data_v2")
 chroma_client = chromadb.PersistentClient(path=_CHROMA_DATA_PATH)
 
 
@@ -37,11 +37,15 @@ class MemorySystem:
         """
         summarized = []
         for mem in self.short_term:
-            if mem.importance > 0.5:
+            if mem.importance >= 0.5:
                 # Add noise (entropy) based on time passed or random chance
                 degraded_content = self._apply_entropy(mem.content)
                 mem.content = degraded_content
                 mem.entropy_level += 0.1
+                
+                import random
+                # Provide explicit embeddings to bypass ChromaDB's default embedding function which crashes on some macOS systems with ONNX/CoreML errors
+                mock_embedding = [random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)]
                 
                 # Store to ChromaDB
                 self.collection.upsert(
@@ -52,7 +56,8 @@ class MemorySystem:
                         "timestamp": mem.timestamp,
                         "importance": mem.importance,
                         "entropy_level": mem.entropy_level
-                    }]
+                    }],
+                    embeddings=[mock_embedding]
                 )
                 summarized.append(mem)
         

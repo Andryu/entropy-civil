@@ -73,7 +73,9 @@ def detect_and_record_epoch(current_turn: int) -> bool:
         reflection_texts = "\n".join(
             [f"T-{r.turn}: {r.content}" for r in reflections[:10]]
         )
-        prompt = (
+
+        # 1. Generate Era Name
+        name_prompt = (
             "You are a historian analyzing an ancient civilization's memories.\n"
             "Based on the following reflections from turns "
             f"{since_turn} to {current_turn}, "
@@ -81,26 +83,34 @@ def detect_and_record_epoch(current_turn: int) -> bool:
             "Just output the era name, nothing else.\n\n"
             f"Reflections:\n{reflection_texts}\n\nEra Name:"
         )
-
-        era_name = _call_ollama(prompt)
+        era_name = _call_ollama(name_prompt)
         if not era_name:
             era_name = f"The Era of Turn {since_turn}"
+        era_name = era_name.strip().strip('"\'').split("\n")[0][:100]
 
-        # Sanitize: remove quotes and newlines, limit length
-        era_name = era_name.strip().strip('"\'')
-        era_name = era_name.split("\n")[0]
-        if len(era_name) > 100:
-            era_name = era_name[:100]
-
+        # 2. Generate Master Prompt for Image Generation (Midjourney style)
+        art_prompt = (
+            "You are a visionary prompt engineer. Based on the era ' " + era_name + " ' "
+            "and these historical context symbols:\n" + reflection_texts + "\n\n"
+            "Create a single, highly detailed, cinematic Midjourney prompt (in English) "
+            "that visually represents the soul of this era. Format: [Subject], [Environment], "
+            "[Atmosphere/Lighting], [Art Style], --ar 16:9 --v 6.0. "
+            "Output ONLY the prompt text."
+        )
+        master_prompt = _call_ollama(art_prompt)
+        if not master_prompt:
+            master_prompt = f"A cinematic representation of the {era_name} era, ancient civilization style, hyper-realistic --ar 16:9"
 
         new_epoch = models.HistoricalEpoch(
             epoch_name=era_name,
             turn_start=since_turn,
             turn_end=current_turn,
+            master_prompt=master_prompt
         )
         db.add(new_epoch)
         db.commit()
-        print(f"[EpochDetector] ✦ New Epoch recorded: '{era_name}' (turn {since_turn}–{current_turn})")
+        print(f"[EpochDetector] ✦ New Epoch recorded: '{era_name}'")
+        print(f"[EpochDetector] 🎨 Master Prompt: {master_prompt[:50]}...")
         return True
 
     except Exception as e:

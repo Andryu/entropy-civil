@@ -86,14 +86,57 @@ function Universe() {
         />
     )), [memories]);
 
+    // constellation lines between legends
+    const legendLines = useMemo(() => {
+        const legends = memories.filter(m => m.isLegend);
+        if (legends.length < 2) return null;
+
+        const lineGeometry = new THREE.BufferGeometry();
+        const positions = [];
+
+        // Connect each legend to its nearest neighbors to form a constellation
+        const K = Math.min(3, legends.length - 1);
+        const drawnPairs = new Set<string>();
+
+        for (let i = 0; i < legends.length; i++) {
+            const p1 = new THREE.Vector3(...legends[i].position);
+
+            const distances = [];
+            for (let j = 0; j < legends.length; j++) {
+                if (i !== j) {
+                    const p2 = new THREE.Vector3(...legends[j].position);
+                    distances.push({ index: j, distance: p1.distanceToSquared(p2) });
+                }
+            }
+
+            distances.sort((a, b) => a.distance - b.distance);
+            const nearest = distances.slice(0, K);
+
+            for (const { index: j } of nearest) {
+                const pairKey = i < j ? `${i}-${j}` : `${j}-${i}`;
+                if (!drawnPairs.has(pairKey)) {
+                    drawnPairs.add(pairKey);
+                    positions.push(...legends[i].position);
+                    positions.push(...legends[j].position);
+                }
+            }
+        }
+
+        lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        return (
+            <lineSegments geometry={lineGeometry}>
+                <lineBasicMaterial color="#00f3ff" transparent opacity={0.3} blending={THREE.AdditiveBlending} />
+            </lineSegments>
+        );
+    }, [memories]);
+
     return (
         <>
             <ambientLight intensity={0.5} />
             <pointLight position={[10, 10, 10]} intensity={1} />
             {particles}
+            {legendLines}
             <OrbitControls
-                autoRotate
-                autoRotateSpeed={0.3}
                 enableDamping
                 dampingFactor={0.05}
                 maxDistance={80}

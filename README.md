@@ -21,17 +21,17 @@ The resulting history is visualized in real-time through a cinematic web UI.
 │  ├── Code of History   - real-time log feed  │
 │  └── Curatorial Gallery - curated AI art     │
 └───────────────┬──────────────────────────────┘
-                │  HTTP (port 8001)
+                │  HTTP (port 8002)
 ┌───────────────▼──────────────────────────────┐
-│  BACKEND (FastAPI, port 8001)                │
+│  BACKEND (FastAPI, port 8002)                │
 │  /api/history  /api/universe  /api/epochs    │
 └──────┬──────────────────────┬────────────────┘
        │                      │
 ┌──────▼───────┐   ┌──────────▼────────────────┐
-│ PostgreSQL   │   │ ChromaDB (local)           │
-│ Event Logs   │   │ Agent Memory Vectors       │
+│  PostgreSQL  │   │ ChromaDB (local)           │
+│  Event Logs  │   │ Agent Memory Vectors       │
 └──────────────┘   └───────────────────────────┘
-                              │
+                               │
 ┌─────────────────────────────▼──────────────┐
 │  Ollama (local LLM, port 11434)            │
 │  ├── llama3.2    – daily agent chatter     │
@@ -72,20 +72,18 @@ pip install -r requirements.txt
 
 ### 3. Run the services
 
-Open **3 separate terminals**:
+Open **2 separate terminals**:
 
 ```bash
-# Terminal 1 – FastAPI backend
-cd backend && uvicorn main:app --reload --port 8001
+# Terminal 1 – Backend & Simulation (using dev_runner)
+source backend/.venv/bin/activate
+python3 dev_runner.py
 
-# Terminal 2 – Simulation engine
-cd backend && python simulation.py
-
-# Terminal 3 – Frontend
+# Terminal 2 – Frontend
 cd frontend && npm install && npm run dev
 ```
 
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:5173` (or the port shown by Vite) in your browser.
 
 ---
 
@@ -126,9 +124,9 @@ Create a `.env` file at the project root:
 
 ```env
 DATABASE_URL=postgresql://civ_user:civ_password@localhost:5432/civ_timeline
-CHROMA_DATA_PATH=./chroma_data
+CHROMA_DATA_PATH=./chroma_data_v2
 OLLAMA_BASE_URL=http://localhost:11434
-VITE_API_BASE_URL=http://localhost:8001
+VITE_API_BASE_URL=http://localhost:8002
 ```
 
 ---

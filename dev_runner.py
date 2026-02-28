@@ -4,8 +4,8 @@ import sys
 import os
 
 def run_backend():
-    print("Starting FastAPI Backend (Port 8001)...")
-    return subprocess.Popen([sys.executable, "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"], cwd="backend")
+    print("Starting FastAPI Backend (Port 8002)...")
+    return subprocess.Popen([sys.executable, "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002"], cwd="backend")
 
 def run_simulation():
     print("Starting Simulation Engine...")

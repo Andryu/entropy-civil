@@ -35,3 +35,10 @@ npm-debug.log*
 # Docker volumes (local data)
 pgdata/
 chromadata/
+backend/chroma_data_v2/
+
+# User logs
+daily-*.md
+*.log
+backend/*.log
+dev_runner.log
