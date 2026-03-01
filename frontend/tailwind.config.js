@@ -15,6 +15,16 @@ export default {
       fontFamily: {
         mono: ['"Fira Code"', '"JetBrains Mono"', 'monospace'],
         display: ['"Outfit"', 'sans-serif'],
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.5s ease-out forwards',
+        'bounce-slow': 'bounce 3s infinite',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0', transform: 'translateY(5px) translateX(-50%)', left: '50%' },
+          '100%': { opacity: '1', transform: 'translateY(0) translateX(-50%)', left: '50%' },
+        }
       }
     },
   },

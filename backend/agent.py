@@ -14,6 +14,11 @@ class AgentState(BaseModel):
     curiosity: float = 1.0    # Drives seeking new knowledge/places
     energy: float = 1.0       # Decreases with actions
     needs: Needs = Field(default_factory=Needs)
+    x: float = 50.0           # Sandbox X coordinate (0-100)
+    y: float = 50.0           # Sandbox Y coordinate (0-100)
+    emotion: str = "😐"        # Sandbox visual emotion
+    current_action: str = "Idle" # Sandbox action text
+    speech: str = ""          # Sandbox speech bubble
 
 class AgentIdentity(BaseModel):
     agent_id: str = Field(default_factory=lambda: str(uuid.uuid4()))

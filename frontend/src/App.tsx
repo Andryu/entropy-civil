@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Database, Orbit, Image as ImageIcon } from 'lucide-react';
+import { Database, Orbit, Image as ImageIcon, Map as MapIcon } from 'lucide-react';
 import { ConceptUniverse } from './components/ConceptUniverse';
 import { CodeOfHistory } from './components/CodeOfHistory';
 import { CuratedArtGallery } from './components/CuratedArtGallery';
+import { SandboxWorld } from './components/SandboxWorld';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'universe' | 'code' | 'art'>('universe');
+  const [activeTab, setActiveTab] = useState<'sandbox' | 'universe' | 'code' | 'art'>('sandbox');
 
   return (
     <div className="h-screen w-screen bg-dark text-white overflow-hidden flex flex-col relative font-display">
@@ -18,6 +19,12 @@ function App() {
         </h1>
 
         <div className="flex gap-4">
+          <TabButton
+            active={activeTab === 'sandbox'}
+            onClick={() => setActiveTab('sandbox')}
+            icon={<MapIcon size={18} />}
+            label="Sandbox World"
+          />
           <TabButton
             active={activeTab === 'universe'}
             onClick={() => setActiveTab('universe')}
@@ -41,6 +48,7 @@ function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 relative w-full h-full">
+        {activeTab === 'sandbox' && <SandboxWorld />}
         {activeTab === 'universe' && <ConceptUniverse />}
         {activeTab === 'code' && <CodeOfHistory />}
         {activeTab === 'art' && <CuratedArtGallery />}

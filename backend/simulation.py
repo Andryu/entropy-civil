@@ -5,6 +5,10 @@ from database import SessionLocal, engine, Base
 from epoch_detector import detect_and_record_epoch
 from chronicle_summarizer import generate_chronicle
 import models
+import json
+import os
+import random
+from sandbox_utils import parse_agent_action
 
 # Ensure tables are created
 Base.metadata.create_all(bind=engine)
@@ -49,12 +53,20 @@ class Simulation:
             for agent in self.agents:
                 action = self.router.chat_daily(f"What will {agent.identity.name} do?")
 
-                # Fix #3: remove in-memory history_log; save directly to DB only
                 if not action or "[FALLBACK]" in action:
                     print(f"[WARN] Agent {agent.identity.name} got a fallback response at turn {self.turn}. Skipping save.")
                     continue
 
                 agent.memory.add_memory(action, importance=0.5, timestamp=self.turn)
+
+                # --- Sandbox State Update ---
+                parsed = parse_agent_action(action)
+                agent.state.emotion = parsed["emotion"]
+                agent.state.current_action = parsed["action"]
+                agent.state.speech = parsed["speech"]
+                # Move slightly
+                agent.state.x = max(0.0, min(100.0, agent.state.x + random.uniform(-10.0, 10.0)))
+                agent.state.y = max(0.0, min(100.0, agent.state.y + random.uniform(-10.0, 10.0)))
 
                 # Save Daily Action to DB
                 event = models.SimulationEvent(
@@ -107,7 +119,31 @@ class Simulation:
         # Phase 5: Generate chronicle summary every 100 turns
         generate_chronicle(self.turn)
 
+        # Output current state for Sandbox View
+        self._dump_sandbox_state()
+
         self.turn += 1
+
+    def _dump_sandbox_state(self):
+        state_data = []
+        for agent in self.agents:
+            state_data.append({
+                "id": agent.identity.agent_id,
+                "name": agent.identity.name,
+                "x": agent.state.x,
+                "y": agent.state.y,
+                "emotion": agent.state.emotion,
+                "action": agent.state.current_action,
+                "speech": agent.state.speech
+            })
+        
+        static_dir = os.path.join(os.path.dirname(__file__), "static")
+        os.makedirs(static_dir, exist_ok=True)
+        try:
+            with open(os.path.join(static_dir, "sandbox_state.json"), "w", encoding="utf-8") as f:
+                json.dump({"turn": self.turn, "agents": state_data}, f, ensure_ascii=False)
+        except Exception as e:
+            print(f"[WARN] Failed to write sandbox state: {e}")
 
 if __name__ == "__main__":
     import time

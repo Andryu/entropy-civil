@@ -64,10 +64,52 @@ export function CuratedArtGallery() {
 
             {/* Right side: Gallery & Upload */}
             <div className="w-full md:w-2/3 flex flex-col gap-4">
-                <div className="h-32 rounded-xl border border-dashed border-white/20 bg-white/5 flex flex-col items-center justify-center text-white/40 hover:text-white/80 hover:border-white/50 transition-all cursor-pointer">
+                <input
+                    type="file"
+                    id="artwork-upload"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file || !latestEpoch) return;
+
+                        const formData = new FormData();
+                        formData.append('file', file);
+
+                        try {
+                            const res = await fetch(`${API_BASE}/api/epochs/${latestEpoch.id}/upload`, {
+                                method: 'POST',
+                                body: formData,
+                            });
+
+                            if (res.ok) {
+                                // Refresh epochs to show new image
+                                const epochRes = await fetch(`${API_BASE}/api/epochs`);
+                                const json = await epochRes.json();
+                                if (json.epochs) {
+                                    setEpochs(json.epochs.reverse());
+                                }
+                            } else {
+                                console.error("Upload failed", await res.text());
+                            }
+                        } catch (err) {
+                            console.error("Upload error", err);
+                        }
+
+                        // Reset input
+                        e.target.value = '';
+                    }}
+                />
+                <button
+                    onClick={() => document.getElementById('artwork-upload')?.click()}
+                    disabled={!latestEpoch}
+                    className="h-32 w-full rounded-xl border border-dashed border-white/20 bg-white/5 flex flex-col items-center justify-center text-white/40 hover:text-white/80 hover:border-white/50 hover:bg-white/10 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                     <Upload size={24} className="mb-2" />
-                    <span className="text-sm font-bold tracking-widest">生成したアートワークをアップロード (UPLOAD ARTWORK)</span>
-                </div>
+                    <span className="text-sm font-bold tracking-widest">
+                        {latestEpoch ? `生成したアートワークをアップロード [ ${latestEpoch.name} ]` : 'エポックを待機中'}
+                    </span>
+                </button>
 
                 {/* Gallery Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -78,23 +120,27 @@ export function CuratedArtGallery() {
                             animate={{ opacity: 1, y: 0 }}
                             className="rounded-xl overflow-hidden relative group border border-white/10 aspect-video bg-black"
                         >
-                            <img
-                                src={`${API_BASE}${epoch.image_url}`}
-                                alt={epoch.name}
-                                className="w-full h-full object-cover transform transition-transform duration-700 group-hover:scale-110"
-                                onError={(e) => {
-                                    (e.target as any).style.display = 'none';
-                                    (e.target as any).nextSibling.style.display = 'flex';
-                                }}
-                            />
-                            <div className="hidden absolute inset-0 flex items-center justify-center text-white/10 font-bold tracking-widest text-center px-4 bg-gradient-to-tr from-neonPurple/10 to-neonBlue/10">
-                                [ {epoch.name}のアートを待機中 ]
-                            </div>
+                            {epoch.image_url ? (
+                                <img
+                                    src={`${API_BASE}${epoch.image_url}?t=${Date.now()}`} // Cache buster
+                                    alt={epoch.name}
+                                    className="w-full h-full object-cover transform transition-transform duration-700 group-hover:scale-110"
+                                />
+                            ) : (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-tr from-neonPurple/10 to-neonBlue/10 p-4 text-center">
+                                    <div className="text-white/20 font-bold tracking-widest mb-2">
+                                        [ {epoch.name} ]
+                                    </div>
+                                    <div className="text-xs text-white/40">
+                                        アートワーク未登録
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Overlay metadata */}
                             <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black to-transparent opacity-80 group-hover:opacity-100 transition-opacity">
                                 <h3 className="font-bold text-sm">{epoch.name}</h3>
-                                <p className="text-xs text-white/60">Turn {epoch.turn_start} - {epoch.turn_end || '?'}</p>
+                                <p className="text-xs text-white/60">Turn {epoch.turn_start}{epoch.turn_end ? ` - ${epoch.turn_end}` : ''}</p>
                             </div>
                         </motion.div>
                     ))}

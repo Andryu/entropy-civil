@@ -1,5 +1,7 @@
 import os
-from fastapi import FastAPI, Depends
+import shutil
+from typing import Optional, List
+from fastapi import FastAPI, Depends, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -99,15 +101,47 @@ def get_historical_epochs(db: Session = Depends(get_db)):
     result = []
     for e in epochs:
         # Simple check for image: [epoch_id].jpg
-        image_path = f"/static/curated_art/{e.id}.jpg"
-        # We don't check filesystem here for performance, frontend can handle 404
+        image_path_relative = f"/static/curated_art/{e.id}.jpg"
+        image_path_absolute = os.path.join(static_dir, "curated_art", f"{e.id}.jpg")
+        
+        # Check if the image actually exists on the filesystem to prevent 404s
+        image_url = image_path_relative if os.path.exists(image_path_absolute) else None
+        
         result.append({
             "id": e.id, 
             "name": e.epoch_name, 
             "turn_start": e.turn_start,
             "master_prompt": e.master_prompt,
-            "image_url": image_path
+            "image_url": image_url
         })
     return {"epochs": result}
+
+@app.get("/api/sandbox/state")
+def get_sandbox_state():
+    """Return current state of all agents for the sandbox view"""
+    import json
+    state_file = os.path.join(static_dir, "sandbox_state.json")
+    if os.path.exists(state_file):
+        try:
+            with open(state_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            return {"error": str(e), "data": {}}
+    return {"error": "No state yet", "data": {}}
+
+@app.post("/api/epochs/{epoch_id}/upload")
+async def upload_epoch_image(epoch_id: int, file: UploadFile = File(...)):
+    """Upload an image for a specific epoch"""
+    if not file.content_type.startswith("image/"):
+        return {"error": "File must be an image"}
+        
+    image_path = os.path.join(static_dir, "curated_art", f"{epoch_id}.jpg")
+    
+    try:
+        with open(image_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        return {"status": "success", "message": f"Image uploaded for epoch {epoch_id}"}
+    except Exception as e:
+        return {"error": str(e)}
 
 # Run with: uvicorn main:app --reload --port 8002
