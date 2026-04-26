@@ -7,7 +7,10 @@ import chromadb
 
 # Use local PersistentClient — no Docker server needed.
 # Data is saved to ./chroma_data_v2 inside the backend directory.
-_CHROMA_DATA_PATH = os.path.join(os.path.dirname(__file__), "chroma_data_v2")
+_CHROMA_DATA_PATH = os.getenv(
+    "CHROMA_DATA_PATH",
+    os.path.join(os.path.dirname(__file__), "chroma_data_v2"),
+)
 chroma_client = chromadb.PersistentClient(path=_CHROMA_DATA_PATH)
 
 

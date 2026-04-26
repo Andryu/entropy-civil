@@ -1,17 +1,16 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
+import { fetchJson } from '../lib/api';
+import type { Epoch, EpochsResponse, HistoryLog, HistoryResponse } from '../types';
 
 export function CodeOfHistory() {
-    const [logs, setLogs] = useState<any[]>([]);
-    const [epochs, setEpochs] = useState<any[]>([]);
+    const [logs, setLogs] = useState<HistoryLog[]>([]);
+    const [epochs, setEpochs] = useState<Epoch[]>([]);
 
     useEffect(() => {
         const fetchHistory = async () => {
             try {
-                const res = await fetch(`${API_BASE}/api/history`);
-                const json = await res.json();
+                const json = await fetchJson<HistoryResponse>('/api/history');
                 if (json.logs) {
                     setLogs(json.logs);
                 }
@@ -22,8 +21,7 @@ export function CodeOfHistory() {
 
         const fetchEpochs = async () => {
             try {
-                const res = await fetch(`${API_BASE}/api/epochs`);
-                const json = await res.json();
+                const json = await fetchJson<EpochsResponse>('/api/epochs');
                 if (json.epochs) {
                     setEpochs(json.epochs);
                 }
