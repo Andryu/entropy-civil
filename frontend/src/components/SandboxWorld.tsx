@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { fetchJson } from '../lib/api';
-import type { AgentState, SandboxState } from '../types';
+import type { AgentState, SandboxState, WorldLocation } from '../types';
 
 export function SandboxWorld() {
     const [state, setState] = useState<SandboxState | null>(null);
@@ -36,6 +36,11 @@ export function SandboxWorld() {
                     backgroundColor: '#1a202c', // Dark modern map background
                 }}
             >
+                {/* Render World Locations */}
+                {state?.world?.locations.map(location => (
+                    <LocationMarker key={location.id} location={location} />
+                ))}
+
                 {/* Render Agents */}
                 {state && state.agents.map(agent => (
                     <AgentIcon key={agent.id} agent={agent} />
@@ -51,9 +56,71 @@ export function SandboxWorld() {
             <div className="absolute top-4 left-4 glass-panel px-4 py-2 flex gap-4 text-sm font-mono text-white/70">
                 <div>Turn: <span className="text-neonBlue">{state?.turn ?? 0}</span></div>
                 <div>Agents: <span className="text-neonBlue">{state?.agents.length ?? 0}</span></div>
+                <div>Weather: <span className="text-neonBlue">{state?.world?.weather ?? 'unknown'}</span></div>
             </div>
+
+            {state?.world && (
+                <div className="absolute top-16 left-4 glass-panel px-4 py-3 text-xs font-mono text-white/70 w-64">
+                    <div className="text-white/90 font-bold mb-2">World resources</div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                        {Object.entries(state.world.resources).map(([name, value]) => (
+                            <div key={name} className="flex justify-between gap-2">
+                                <span className="capitalize">{name}</span>
+                                <span className="text-neonBlue">{value}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
+}
+
+function LocationMarker({ location }: { location: WorldLocation }) {
+    const left = 20 + (location.x / 100) * 760;
+    const top = 20 + (location.y / 100) * 560;
+    const icon = biomeIcon(location.biome);
+
+    return (
+        <div
+            className="absolute flex flex-col items-center text-white/70"
+            style={{
+                left: `${left}px`,
+                top: `${top}px`,
+                transform: 'translate(-50%, -50%)'
+            }}
+            title={`${location.name} / ${location.resources.join(', ')} / activity ${location.activity}`}
+        >
+            <div className="text-2xl opacity-80 drop-shadow-[0_0_10px_rgba(255,255,255,0.25)]">
+                {icon}
+            </div>
+            <div className="mt-1 text-[10px] font-bold tracking-wide bg-black/50 px-2 py-0.5 rounded border border-white/10">
+                {location.name}
+            </div>
+            {location.activity > 0 && (
+                <div className="mt-1 text-[9px] text-neonBlue bg-black/60 px-1 rounded">
+                    activity {location.activity}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function biomeIcon(biome: string) {
+    switch (biome) {
+        case 'water':
+            return '🌊';
+        case 'forest':
+            return '🌲';
+        case 'settlement':
+            return '🔥';
+        case 'stone':
+            return '⛰️';
+        case 'grassland':
+            return '🌾';
+        default:
+            return '◇';
+    }
 }
 
 function AgentIcon({ agent }: { agent: AgentState }) {
