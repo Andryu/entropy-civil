@@ -30,7 +30,6 @@ services:
     restart: unless-stopped
     environment:
       - IS_PERSISTENT=TRUE
-      - CHROMA_SERVER_AUTH_PROVIDER=
     ports:
       - "8000:8000"
     volumes:
@@ -58,7 +57,7 @@ services:
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - CHROMA_DATA_PATH=/app/chroma_data
     ports:
-      - "8001:8001"
+      - "8002:8002"
     volumes:
       - chroma_local:/app/chroma_data
     networks:

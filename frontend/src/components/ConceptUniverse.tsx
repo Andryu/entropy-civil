@@ -1,12 +1,16 @@
 import { useRef, useMemo, useState, useEffect } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Stars, Html } from '@react-three/drei';
 import * as THREE from 'three';
+import { fetchJson } from '../lib/api';
+import type { UniverseParticleData, UniverseResponse } from '../types';
 
-// Data is now fetched from the backend API
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
+interface ParticleProps extends UniverseParticleData {
+    size: number;
+    onClick: () => void;
+}
 
-function Particle({ position, size, isLegend, text, onClick }: any) {
+function Particle({ position, size, isLegend, text, onClick }: ParticleProps) {
     const mesh = useRef<THREE.Mesh>(null);
     const [hovered, setHover] = useState(false);
 
@@ -30,8 +34,8 @@ function Particle({ position, size, isLegend, text, onClick }: any) {
         <group position={position}>
             <mesh
                 ref={mesh}
-                onClick={(e) => { e.stopPropagation(); onClick(); }}
-                onPointerOver={(e) => { e.stopPropagation(); setHover(true); }}
+                onClick={(e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); onClick(); }}
+                onPointerOver={(e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); setHover(true); }}
                 onPointerOut={() => setHover(false)}
             >
                 {isLegend ? <icosahedronGeometry args={[size, 1]} /> : <sphereGeometry args={[size, 16, 16]} />}
@@ -56,14 +60,13 @@ function Particle({ position, size, isLegend, text, onClick }: any) {
 }
 
 function Universe() {
-    const [selected, setSelected] = useState<any>(null);
-    const [memories, setMemories] = useState<any[]>([]);
+    const [selected, setSelected] = useState<UniverseParticleData | null>(null);
+    const [memories, setMemories] = useState<UniverseParticleData[]>([]);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const res = await fetch(`${API_BASE}/api/universe`);
-                const json = await res.json();
+                const json = await fetchJson<UniverseResponse>('/api/universe');
                 if (json.data) {
                     setMemories(json.data);
                 }

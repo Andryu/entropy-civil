@@ -1,19 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-
-interface AgentState {
-    id: string;
-    name: string;
-    x: number;
-    y: number;
-    emotion: string;
-    action: string;
-    speech: string;
-}
-
-interface SandboxState {
-    turn: number;
-    agents: AgentState[];
-}
+import { fetchJson } from '../lib/api';
+import type { AgentState, SandboxState } from '../types';
 
 export function SandboxWorld() {
     const [state, setState] = useState<SandboxState | null>(null);
@@ -23,12 +10,9 @@ export function SandboxWorld() {
     useEffect(() => {
         const fetchState = async () => {
             try {
-                const res = await fetch('http://localhost:8002/api/sandbox/state');
-                if (res.ok) {
-                    const data = await res.json();
-                    if (!data.error) {
-                        setState(data);
-                    }
+                const data = await fetchJson<SandboxState & { error?: string }>('/api/sandbox/state');
+                if (!data.error) {
+                    setState(data);
                 }
             } catch (err) {
                 console.error("Failed to fetch sandbox state:", err);

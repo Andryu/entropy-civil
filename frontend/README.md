@@ -14,7 +14,7 @@ npm run dev       # http://localhost:5173
 `.env` に以下を設定:
 
 ```env
-VITE_API_BASE_URL=http://localhost:8001
+VITE_API_BASE_URL=http://localhost:8002
 ```
 
 See root [README.md](../README.md) for full project setup.

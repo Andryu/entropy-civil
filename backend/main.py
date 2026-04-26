@@ -30,7 +30,10 @@ os.makedirs(static_dir, exist_ok=True)
 os.makedirs(os.path.join(static_dir, "curated_art"), exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-_CHROMA_DATA_PATH = os.path.join(os.path.dirname(__file__), "chroma_data_v2")
+_CHROMA_DATA_PATH = os.getenv(
+    "CHROMA_DATA_PATH",
+    os.path.join(os.path.dirname(__file__), "chroma_data_v2"),
+)
 try:
     chroma_client = chromadb.PersistentClient(path=_CHROMA_DATA_PATH)
     chroma_collection = chroma_client.get_or_create_collection(name="civilization_memories")

@@ -28,9 +28,11 @@ Thumbs.db
 *.swo
 *~
 
-# Logs
+# Logs and local process artifacts
 *.log
+*.pid
 npm-debug.log*
+backend/static/
 
 # Docker volumes (local data)
 pgdata/

@@ -1,26 +1,34 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Upload, Star, Copy, Check } from 'lucide-react';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
+import { API_BASE, fetchJson } from '../lib/api';
+import type { Epoch, EpochsResponse } from '../types';
 
 export function CuratedArtGallery() {
-    const [epochs, setEpochs] = useState<any[]>([]);
+    const [epochs, setEpochs] = useState<Epoch[]>([]);
     const [copied, setCopied] = useState(false);
+    const [cacheBuster, setCacheBuster] = useState(() => Date.now());
+
+    const refreshEpochs = async () => {
+        const json = await fetchJson<EpochsResponse>('/api/epochs');
+        if (json.epochs) {
+            setEpochs([...json.epochs].reverse()); // Latest first
+        }
+    };
 
     useEffect(() => {
-        const fetchEpochs = async () => {
+        const loadEpochs = async () => {
             try {
-                const res = await fetch(`${API_BASE}/api/epochs`);
-                const json = await res.json();
+                const json = await fetchJson<EpochsResponse>('/api/epochs');
                 if (json.epochs) {
-                    setEpochs(json.epochs.reverse()); // Latest first
+                    setEpochs([...json.epochs].reverse()); // Latest first
                 }
             } catch (e) {
                 console.error("Failed to fetch epochs", e);
             }
         };
-        fetchEpochs();
+
+        loadEpochs();
     }, []);
 
     const latestEpoch = epochs[0];
@@ -84,11 +92,8 @@ export function CuratedArtGallery() {
 
                             if (res.ok) {
                                 // Refresh epochs to show new image
-                                const epochRes = await fetch(`${API_BASE}/api/epochs`);
-                                const json = await epochRes.json();
-                                if (json.epochs) {
-                                    setEpochs(json.epochs.reverse());
-                                }
+                                await refreshEpochs();
+                                setCacheBuster(Date.now());
                             } else {
                                 console.error("Upload failed", await res.text());
                             }
@@ -122,7 +127,7 @@ export function CuratedArtGallery() {
                         >
                             {epoch.image_url ? (
                                 <img
-                                    src={`${API_BASE}${epoch.image_url}?t=${Date.now()}`} // Cache buster
+                                    src={`${API_BASE}${epoch.image_url}?t=${cacheBuster}`}
                                     alt={epoch.name}
                                     className="w-full h-full object-cover transform transition-transform duration-700 group-hover:scale-110"
                                 />
