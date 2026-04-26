@@ -6,11 +6,38 @@ export interface AgentState {
   emotion: string;
   action: string;
   speech: string;
+  location_id?: string | null;
+}
+
+export interface WorldLocation {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  biome: string;
+  resources: string[];
+  activity: number;
+  last_event: string;
+}
+
+export interface WorldState {
+  weather: string;
+  resources: Record<string, number>;
+  locations: WorldLocation[];
+  events: Array<{
+    agent_id: string;
+    location_id: string;
+    resource_id: string;
+    effect: string;
+    amount: number;
+    description: string;
+  }>;
 }
 
 export interface SandboxState {
   turn: number;
   agents: AgentState[];
+  world?: WorldState;
 }
 
 export interface UniverseParticleData {

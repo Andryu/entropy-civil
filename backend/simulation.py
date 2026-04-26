@@ -10,12 +10,15 @@ from typing import Optional
 from agent import Agent
 from demo_runtime import DemoLLMRouter, DemoMemorySystem
 from sandbox_utils import parse_agent_action
+from world_state import WorldState, apply_agent_action_to_world
 
 
 class Simulation:
     def __init__(self, num_agents: int = 5, demo_mode: bool = False, seed: Optional[int] = None):
         self.demo_mode = demo_mode
         self.random = random.Random(seed)
+        self.world = WorldState.create_default(self.random)
+        self.agent_locations: dict[str, str] = {}
         self.demo_events = []
         self._models = None
         self._SessionLocal = None
@@ -163,15 +166,23 @@ class Simulation:
             return None
 
         agent.memory.add_memory(action, importance=0.5, timestamp=self.turn)
+        world_event = apply_agent_action_to_world(
+            self.world,
+            agent.identity.agent_id,
+            action,
+            self.random,
+        )
+        self.agent_locations[agent.identity.agent_id] = world_event["location_id"]
 
         # --- Sandbox State Update ---
         parsed = parse_agent_action(action)
         agent.state.emotion = parsed["emotion"]
         agent.state.current_action = parsed["action"]
         agent.state.speech = parsed["speech"]
-        # Move slightly; seeded RNG makes demo mode reproducible.
-        agent.state.x = max(0.0, min(100.0, agent.state.x + self.random.uniform(-10.0, 10.0)))
-        agent.state.y = max(0.0, min(100.0, agent.state.y + self.random.uniform(-10.0, 10.0)))
+        # Move toward the location affected by this action; seeded RNG keeps demo mode reproducible.
+        location = self.world.locations[world_event["location_id"]]
+        agent.state.x = max(0.0, min(100.0, location.x + self.random.uniform(-5.0, 5.0)))
+        agent.state.y = max(0.0, min(100.0, location.y + self.random.uniform(-5.0, 5.0)))
         return action
 
     def _run_reflection(self, agent: Agent) -> str | None:
@@ -202,13 +213,18 @@ class Simulation:
                 "emotion": agent.state.emotion,
                 "action": agent.state.current_action,
                 "speech": agent.state.speech,
+                "location_id": self.agent_locations.get(agent.identity.agent_id),
             })
 
         static_dir = os.path.join(os.path.dirname(__file__), "static")
         os.makedirs(static_dir, exist_ok=True)
         try:
             with open(os.path.join(static_dir, "sandbox_state.json"), "w", encoding="utf-8") as f:
-                json.dump({"turn": self.turn, "agents": state_data}, f, ensure_ascii=False)
+                json.dump(
+                    {"turn": self.turn, "agents": state_data, "world": self.world.to_dict()},
+                    f,
+                    ensure_ascii=False,
+                )
         except Exception as e:
             print(f"[WARN] Failed to write sandbox state: {e}")
 

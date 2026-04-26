@@ -36,6 +36,11 @@ class DemoSimulationCliTest(unittest.TestCase):
         state = json.loads(state_file.read_text())
         self.assertEqual(state["turn"], 1)
         self.assertEqual(len(state["agents"]), 5)
+        self.assertIn("world", state)
+        self.assertIn("resources", state["world"])
+        self.assertIn("locations", state["world"])
+        self.assertGreaterEqual(len(state["world"]["locations"]), 4)
+        self.assertTrue(any(agent.get("location_id") for agent in state["agents"]))
 
     def test_demo_cli_reproduces_same_sandbox_state_for_same_seed(self):
         repo = Path(__file__).resolve().parents[1]
