@@ -85,6 +85,22 @@ cd frontend && npm install && npm run dev
 
 Open `http://localhost:5173` (or the port shown by Vite) in your browser.
 
+### Demo mode without Ollama/PostgreSQL/ChromaDB
+
+To quickly generate deterministic sandbox state without external services:
+
+```bash
+python3 backend/simulation.py --demo --seed 42 --turns 10 --sleep 0
+```
+
+This writes `backend/static/sandbox_state.json`, which the frontend can display through the backend API once the API server is running. Use the same `--seed` value to reproduce the same demo run.
+
+Useful options:
+
+```bash
+python3 backend/simulation.py --demo --seed 7 --turns 100 --agents 8 --sleep 0.1
+```
+
 ---
 
 ## How It Works
