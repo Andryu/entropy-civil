@@ -20,10 +20,20 @@ export interface WorldLocation {
   last_event: string;
 }
 
+export interface WorldBelief {
+  kind: string;
+  text: string;
+  source_agent_id: string;
+  source_turn: number;
+  strength: number;
+  trigger: string;
+}
+
 export interface WorldState {
   weather: string;
   resources: Record<string, number>;
   locations: WorldLocation[];
+  beliefs: WorldBelief[];
   events: Array<{
     agent_id: string;
     location_id: string;

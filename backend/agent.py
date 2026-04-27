@@ -130,6 +130,18 @@ class Agent:
 
     def _heuristic_next_action(self, context: str) -> str:
         strongest_relationship = max(self.relationships.values(), default=0.0)
+        lowered_context = context.lower()
+
+        if any(word in lowered_context for word in ["taboo", "forbidden", "avoid fishing", "river taboo"]) and any(
+            word in lowered_context for word in ["fish", "fishing", "river", "dawn"]
+        ):
+            if self.state.needs.survival < 0.35:
+                partner = self._best_relationship_target(prefer_positive=True)
+                if partner:
+                    return f"{self.identity.name} gathers berries in the meadow with {partner}, honoring the taboo."
+                return f"{self.identity.name} gathers berries in the meadow, honoring the taboo."
+            return f"{self.identity.name} gathers berries in the meadow instead of fishing at dawn."
+
         if self.state.needs.survival < 0.35:
             if strongest_relationship > 0.4:
                 partner = self._best_relationship_target(prefer_positive=True)
@@ -153,8 +165,11 @@ class Agent:
         if self.state.energy < 0.35:
             return f"{self.identity.name} rests by the fire to recover energy."
 
-        if any(word in context.lower() for word in ["storm", "winter", "hunger", "empty"]):
+        if any(word in lowered_context for word in ["storm", "winter", "hunger", "empty"]):
             return f"{self.identity.name} checks the stores and gathers food near the river."
+
+        if any(word in lowered_context for word in ["prophecy", "omen", "sacred_location"]):
+            return f"{self.identity.name} visits the fire pit to listen for the meaning of the omen."
 
         return f"{self.identity.name} crafts a small tool and reflects on the day."
 
