@@ -51,6 +51,15 @@ class Simulation:
             for i, agent in enumerate(self.agents):
                 agent.identity.agent_id = f"demo-agent-{i}"
 
+        # Seed simple relationship graph so social context can influence prompts and state.
+        for agent in self.agents:
+            agent.relationships = {
+                other.identity.agent_id: 0.0
+                for other in self.agents
+                if other.identity.agent_id != agent.identity.agent_id
+            }
+            agent.brain = self.router
+
         # Inject memory system into agents
         for a in self.agents:
             a.memory = memory_factory(agent_id=a.identity.agent_id)
@@ -159,7 +168,8 @@ class Simulation:
         self._generate_chronicle(self.turn)
 
     def _run_daily_action(self, agent: Agent) -> str | None:
-        action = self.router.chat_daily(f"What will {agent.identity.name} do?")
+        context = self._build_agent_context(agent)
+        action = agent.decide_next_action(context)
 
         if not action or "[FALLBACK]" in action:
             print(f"[WARN] Agent {agent.identity.name} got a fallback response at turn {self.turn}. Skipping save.")
@@ -173,6 +183,7 @@ class Simulation:
             self.random,
         )
         self.agent_locations[agent.identity.agent_id] = world_event["location_id"]
+        agent.update_state_after_action(action)
 
         # --- Sandbox State Update ---
         parsed = parse_agent_action(action)
@@ -184,6 +195,25 @@ class Simulation:
         agent.state.x = max(0.0, min(100.0, location.x + self.random.uniform(-5.0, 5.0)))
         agent.state.y = max(0.0, min(100.0, location.y + self.random.uniform(-5.0, 5.0)))
         return action
+
+    def _build_agent_context(self, agent: Agent) -> str:
+        location_id = self.agent_locations.get(agent.identity.agent_id)
+        if location_id and location_id in self.world.locations:
+            location = self.world.locations[location_id]
+            location_text = f"{location.name} ({location.biome}) at ({location.x:.1f}, {location.y:.1f})"
+        else:
+            location_text = "unknown location"
+
+        resource_bits = ", ".join(f"{name}={amount}" for name, amount in sorted(self.world.resources.items()))
+        relationship_bits = ", ".join(
+            f"{other}:{strength:+.2f}"
+            for other, strength in sorted(agent.relationships.items(), key=lambda item: item[1], reverse=True)
+        ) or "none"
+        recent_events = "; ".join(event["description"] for event in self.world.events[-3:]) or "none"
+        return (
+            f"Turn {self.turn}; weather={self.world.weather}; location={location_text}; "
+            f"resources={resource_bits}; recent_events={recent_events}; relationships={relationship_bits}"
+        )
 
     def _run_reflection(self, agent: Agent) -> str | None:
         summarized = agent.memory.reflect_and_summarize(current_time=self.turn)
@@ -214,6 +244,10 @@ class Simulation:
                 "action": agent.state.current_action,
                 "speech": agent.state.speech,
                 "location_id": self.agent_locations.get(agent.identity.agent_id),
+                "relationships": {
+                    other_id: strength
+                    for other_id, strength in sorted(agent.relationships.items())
+                },
             })
 
         static_dir = os.path.join(os.path.dirname(__file__), "static")
