@@ -3,6 +3,12 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from database import Base
 
+try:
+    from backend.event_schema import simulation_event_to_dict
+except ImportError:  # pragma: no cover - script execution fallback
+    from event_schema import simulation_event_to_dict
+
+
 class SimulationEvent(Base):
     __tablename__ = "simulation_events"
 
@@ -11,8 +17,13 @@ class SimulationEvent(Base):
     agent_id = Column(String, index=True)
     event_type = Column(String)  # e.g., "LOCAL_CHAT", "CLOUD_SUMMARY", "ENTROPY"
     content = Column(Text)
+    structured_data = Column(JSON, nullable=True)
     vector_hash = Column(String, nullable=True) # Link to ChromaDB if stored
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    def to_dict(self):
+        return simulation_event_to_dict(self)
+
 
 class HistoricalEpoch(Base):
     __tablename__ = "historical_epochs"
@@ -27,6 +38,7 @@ class HistoricalEpoch(Base):
     
     # Relationship to manually curated art
     artworks = relationship("CuratedArtwork", back_populates="epoch")
+
 
 class CuratedArtwork(Base):
     __tablename__ = "curated_artworks"
