@@ -73,22 +73,63 @@ export function CodeOfHistory() {
             <div className="flex-1 pl-8 flex flex-col justify-end overflow-hidden pb-8 relative">
                 <div className="absolute inset-x-0 top-0 h-24 pointer-events-none bg-gradient-to-b from-black to-transparent z-10" />
                 <div className="flex flex-col gap-2 relative z-0">
-                    {logs.map((log, idx) => (
-                        <motion.div
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            key={log.id || idx}
-                            className={`text-sm ${log.content?.includes('[エントロピー注入]') || log.type === 'REFLECTION' ? 'text-neonPurple font-bold' :
-                                log.type === 'CLOUD_SUMMARY' ? 'text-neonBlue' :
-                                    log.content?.includes('-->') ? 'text-matrixGreen/70' :
-                                        'text-white/60'
-                                }`}
-                        >
-                            <span className="opacity-40 mr-4">T-{log.turn}</span>
-                            <span className="opacity-40 mr-4 text-xs">[{log.type}]</span>
-                            {log.content}
-                        </motion.div>
-                    ))}
+                    {logs.map((log, idx) => {
+                        const structured = log.structured ?? {
+                            actor: log.actor,
+                            action: log.action,
+                            target: log.target,
+                            location: log.location,
+                            cause: log.cause,
+                            effect: log.effect,
+                            tags: log.tags,
+                            importance: log.importance,
+                            entropy_level: log.entropy_level,
+                            causal_parent_id: log.causal_parent_id,
+                        };
+                        const summaryBits = [
+                            structured.actor && `actor:${structured.actor}`,
+                            structured.action && `action:${structured.action}`,
+                            structured.location && `location:${structured.location}`,
+                            structured.target && `target:${structured.target}`,
+                            structured.causal_parent_id != null && `parent:#${structured.causal_parent_id}`,
+                        ].filter(Boolean) as string[];
+                        const tagBits = structured.tags?.length
+                            ? structured.tags.map((tag) => `#${tag}`)
+                            : [];
+
+                        return (
+                            <motion.div
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                key={log.id || idx}
+                                className={`text-sm ${log.content?.includes('[エントロピー注入]') || log.type === 'REFLECTION' ? 'text-neonPurple font-bold' :
+                                    log.type === 'CLOUD_SUMMARY' ? 'text-neonBlue' :
+                                        log.content?.includes('-->') ? 'text-matrixGreen/70' :
+                                            'text-white/60'
+                                    }`}
+                            >
+                                <div>
+                                    <span className="opacity-40 mr-4">T-{log.turn}</span>
+                                    <span className="opacity-40 mr-4 text-xs">[{log.type}]</span>
+                                    {log.content}
+                                </div>
+                                {(summaryBits.length > 0 || tagBits.length > 0) && (
+                                    <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-white/35">
+                                        {summaryBits.map((bit) => (
+                                            <span key={bit} className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">
+                                                {bit}
+                                            </span>
+                                        ))}
+                                        {tagBits.map((bit) => (
+                                            <span key={bit} className="rounded-full border border-neonBlue/20 bg-neonBlue/10 px-2 py-0.5 text-neonBlue/80">
+                                                {bit}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </motion.div>
+                        );
+                    })}
                     {logs.length === 0 && (
                         <div className="text-white/20 italic">シミュレーションログ待機中... (Waiting for logs...)</div>
                     )}
