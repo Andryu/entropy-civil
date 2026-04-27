@@ -72,6 +72,26 @@ export function SandboxWorld() {
                     </div>
                 </div>
             )}
+
+            {state?.world?.beliefs?.length ? (
+                <div className="absolute top-16 right-4 glass-panel px-4 py-3 text-xs font-mono text-white/70 w-72 max-h-[260px] overflow-auto">
+                    <div className="text-white/90 font-bold mb-2">Active beliefs</div>
+                    <div className="space-y-2">
+                        {state.world.beliefs.slice(-6).reverse().map((belief, index) => (
+                            <div key={`${belief.kind}-${belief.source_agent_id}-${belief.source_turn}-${index}`} className="border border-white/10 rounded bg-black/30 p-2">
+                                <div className="flex items-center justify-between gap-2 text-[10px] uppercase tracking-wide text-neonBlue">
+                                    <span>{belief.kind.replace('_', ' ')}</span>
+                                    <span>turn {belief.source_turn}</span>
+                                </div>
+                                <div className="mt-1 text-white/85 leading-snug">{belief.text}</div>
+                                <div className="mt-1 text-[10px] text-white/45">
+                                    from {belief.source_agent_id} · strength {belief.strength.toFixed(2)}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

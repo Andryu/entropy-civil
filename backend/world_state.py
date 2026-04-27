@@ -32,12 +32,35 @@ class Location:
 
 
 @dataclass
+class Belief:
+    """A myth-derived belief that can steer future agent behavior."""
+
+    kind: str
+    text: str
+    source_agent_id: str
+    source_turn: int
+    strength: float = 0.5
+    trigger: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "kind": self.kind,
+            "text": self.text,
+            "source_agent_id": self.source_agent_id,
+            "source_turn": self.source_turn,
+            "strength": self.strength,
+            "trigger": self.trigger,
+        }
+
+
+@dataclass
 class WorldState:
     """Mutable world state that makes agent actions affect civilization context."""
 
     weather: str
     resources: dict[str, int]
     locations: dict[str, Location] = field(default_factory=dict)
+    beliefs: list[Belief] = field(default_factory=list)
     events: list[dict[str, Any]] = field(default_factory=list)
 
     @classmethod
@@ -67,8 +90,15 @@ class WorldState:
             "weather": self.weather,
             "resources": dict(self.resources),
             "locations": [location.to_dict() for location in self.locations.values()],
+            "beliefs": [belief.to_dict() for belief in self.beliefs[-25:]],
             "events": list(self.events[-25:]),
         }
+
+    def add_beliefs(self, beliefs: list[Belief]) -> None:
+        if not beliefs:
+            return
+        self.beliefs.extend(beliefs)
+        self.beliefs = self.beliefs[-50:]
 
 
 def apply_agent_action_to_world(
@@ -106,6 +136,88 @@ def apply_agent_action_to_world(
     location.last_event = event["description"]
     world.events.append(event)
     return event
+
+
+def derive_beliefs_from_reflection(
+    agent_id: str,
+    reflection: str,
+    turn: int,
+    rng: random.Random | None = None,
+) -> list[Belief]:
+    """Convert a mythic reflection into one or more belief candidates."""
+
+    rng = rng or random.Random()
+    lowered = reflection.lower()
+    beliefs: list[Belief] = []
+
+    def add_belief(kind: str, text: str, trigger: str, base_strength: float = 0.6) -> None:
+        strength = min(1.0, base_strength + rng.uniform(0.0, 0.2))
+        beliefs.append(
+            Belief(
+                kind=kind,
+                text=text,
+                source_agent_id=agent_id,
+                source_turn=turn,
+                strength=strength,
+                trigger=trigger,
+            )
+        )
+
+    if any(word in lowered for word in ["punished", "forbidden", "avoid", "curse", "never"]):
+        if any(word in lowered for word in ["fish", "fishing", "river", "dawn"]):
+            add_belief(
+                "taboo",
+                "Avoid fishing at dawn near the river.",
+                "punishment around fishing at dawn",
+            )
+
+    if any(word in lowered for word in ["ritual", "chant", "humming", "dance", "offer"]):
+        add_belief(
+            "ritual",
+            "The village should repeat the chant or ritual that kept the spirits calm.",
+            "ritual language in the reflection",
+        )
+
+    if any(word in lowered for word in ["sacred", "holy", "spirit", "shrine"]):
+        if any(word in lowered for word in ["river", "forest", "cave", "meadow", "fire"]):
+            add_belief(
+                "sacred_location",
+                "A nearby place has become sacred and should be treated with care.",
+                "sacred place language in the reflection",
+            )
+
+    if any(word in lowered for word in ["omen", "sign", "stars", "spiral", "moon"]):
+        add_belief(
+            "omen",
+            "Signs in the sky warn the village to change its path.",
+            "omen language in the reflection",
+            base_strength=0.55,
+        )
+
+    if any(word in lowered for word in ["law", "rule", "must", "should", "custom"]):
+        add_belief(
+            "law",
+            "The village has learned a rule worth following.",
+            "law language in the reflection",
+        )
+
+    if any(word in lowered for word in ["will", "future", "one day", "spring", "return"]):
+        add_belief(
+            "prophecy",
+            "The reflection points to a future event the village should prepare for.",
+            "prophetic language in the reflection",
+            base_strength=0.52,
+        )
+
+    if not beliefs and reflection.strip():
+        add_belief(
+            "omen",
+            "The reflection feels like a sign worth remembering.",
+            "fallback myth recognition",
+            base_strength=0.4,
+        )
+
+    return beliefs
 
 
 def _infer_location_id(action: str) -> str:

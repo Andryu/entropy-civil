@@ -10,7 +10,7 @@ from typing import Optional
 from agent import Agent
 from demo_runtime import DemoLLMRouter, DemoMemorySystem
 from sandbox_utils import parse_agent_action
-from world_state import WorldState, apply_agent_action_to_world
+from world_state import WorldState, apply_agent_action_to_world, derive_beliefs_from_reflection
 
 
 class Simulation:
@@ -210,9 +210,14 @@ class Simulation:
             for other, strength in sorted(agent.relationships.items(), key=lambda item: item[1], reverse=True)
         ) or "none"
         recent_events = "; ".join(event["description"] for event in self.world.events[-3:]) or "none"
+        belief_bits = "; ".join(
+            f"{belief.kind}={belief.text}"
+            for belief in self.world.beliefs[-3:]
+        ) or "none"
         return (
             f"Turn {self.turn}; weather={self.world.weather}; location={location_text}; "
-            f"resources={resource_bits}; recent_events={recent_events}; relationships={relationship_bits}"
+            f"resources={resource_bits}; recent_events={recent_events}; relationships={relationship_bits}; "
+            f"active beliefs={belief_bits}"
         )
 
     def _run_reflection(self, agent: Agent) -> str | None:
@@ -225,6 +230,8 @@ class Simulation:
 
         # Save embedding vector to ChromaDB memory in real mode; demo memory ignores this as short-term lore.
         self.router.extract_vector(exaggerated_memory)
+        beliefs = derive_beliefs_from_reflection(agent.identity.agent_id, exaggerated_memory, self.turn, self.random)
+        self.world.add_beliefs(beliefs)
         agent.memory.add_memory(
             f"[LEGEND] {exaggerated_memory}",
             importance=0.9,
