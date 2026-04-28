@@ -11,6 +11,10 @@ from agent import Agent
 from demo_runtime import DemoLLMRouter, DemoMemorySystem
 from sandbox_utils import parse_agent_action
 from world_state import WorldState, apply_agent_action_to_world, derive_beliefs_from_reflection
+try:
+    from backend.event_schema import build_structured_event_data
+except ImportError:  # pragma: no cover - script execution fallback
+    from event_schema import build_structured_event_data
 
 
 class Simulation:
@@ -125,19 +129,33 @@ class Simulation:
 
     def _step_with_db(self):
         db = self._SessionLocal()
+        daily_event_ids: dict[str, int] = {}
         try:
             for agent in self.agents:
                 action = self._run_daily_action(agent)
                 if not action:
                     continue
 
+                world_event = self.world.events[-1] if self.world.events else {}
+                structured_data = build_structured_event_data(
+                    event_type="DAILY_ACTION",
+                    agent_id=agent.identity.agent_id,
+                    content=action,
+                    turn=self.turn,
+                    location_id=world_event.get("location_id"),
+                    world_event=world_event,
+                    importance=0.5,
+                )
                 event = self._models.SimulationEvent(
                     turn=self.turn,
                     agent_id=agent.identity.agent_id,
                     event_type="DAILY_ACTION",
                     content=action,
+                    structured_data=structured_data,
                 )
                 db.add(event)
+                db.flush()
+                daily_event_ids[agent.identity.agent_id] = event.id
 
             if self.turn % 5 == 0 and self.turn > 0:
                 print(">>> The agents are reflecting... (Entropy Injection)")
@@ -146,11 +164,21 @@ class Simulation:
                     if not reflection:
                         continue
 
+                    structured_data = build_structured_event_data(
+                        event_type="REFLECTION",
+                        agent_id=agent.identity.agent_id,
+                        content=reflection,
+                        turn=self.turn,
+                        causal_parent_id=daily_event_ids.get(agent.identity.agent_id),
+                        entropy_level=0.3,
+                        importance=0.9,
+                    )
                     event = self._models.SimulationEvent(
                         turn=self.turn,
                         agent_id=agent.identity.agent_id,
                         event_type="REFLECTION",
                         content=reflection,
+                        structured_data=structured_data,
                     )
                     db.add(event)
 

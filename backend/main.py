@@ -8,6 +8,10 @@ from sqlalchemy.orm import Session
 import chromadb
 
 from database import get_db, engine, Base
+try:
+    from backend.event_schema import simulation_event_to_dict
+except ImportError:  # pragma: no cover - script execution fallback
+    from event_schema import simulation_event_to_dict
 import models
 
 # Create tables if they don't exist
@@ -93,7 +97,7 @@ def get_historical_logs(limit: int = 50, db: Session = Depends(get_db)):
     """Return stream of recent simulation events"""
     logs = db.query(models.SimulationEvent).order_by(models.SimulationEvent.id.desc()).limit(limit).all()
     # Return in reverse so oldest is first in the output
-    return {"logs": [{"id": l.id, "turn": l.turn, "type": l.event_type, "content": l.content} for l in reversed(logs)]}
+    return {"logs": [simulation_event_to_dict(l) for l in reversed(logs)]}
 
 @app.get("/api/epochs")
 def get_historical_epochs(db: Session = Depends(get_db)):

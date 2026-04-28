@@ -64,11 +64,35 @@ export interface UniverseResponse {
   error?: string;
 }
 
+export interface StructuredHistoryData {
+  actor?: string | null;
+  action?: string | null;
+  target?: string | null;
+  location?: string | null;
+  cause?: string | null;
+  effect?: string | null;
+  tags?: string[];
+  importance?: number | null;
+  entropy_level?: number | null;
+  causal_parent_id?: number | null;
+}
+
 export interface HistoryLog {
   id: number;
   turn: number;
   type: string;
   content: string;
+  structured?: StructuredHistoryData;
+  actor?: string | null;
+  action?: string | null;
+  target?: string | null;
+  location?: string | null;
+  cause?: string | null;
+  effect?: string | null;
+  tags?: string[];
+  importance?: number | null;
+  entropy_level?: number | null;
+  causal_parent_id?: number | null;
 }
 
 export interface HistoryResponse {
